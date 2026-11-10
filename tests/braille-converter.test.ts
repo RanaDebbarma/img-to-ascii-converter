@@ -55,5 +55,11 @@ describe("pixelsToBraille", () => {
     // dy=2, 3 are >= height=2 (skipped).
     expect(char).toBe("⠁");
   });
+
+  it("stripAnsi removes ANSI escape sequences correctly", async () => {
+    const { stripAnsi } = await import("../index");
+    const colored = "\x1b[38;2;255;0;128m⣿\x1b[0m \x1b[32mhello\x1b[0m";
+    expect(stripAnsi(colored)).toBe("⣿ hello");
+  });
 });
 

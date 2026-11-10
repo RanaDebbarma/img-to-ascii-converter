@@ -2,7 +2,7 @@
 import { existsSync } from "node:fs";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { convertImageToBraille, copyToClipboard } from "./index";
+import { convertImageToBraille, copyToClipboard, stripAnsi } from "./index";
 
 interface CliOptions {
   imagePath: string;
@@ -10,6 +10,7 @@ interface CliOptions {
   threshold: number;
   invert: boolean;
   dither: boolean;
+  color: boolean;
   copy?: boolean;
 }
 
@@ -35,6 +36,12 @@ function parseCliArgs(): {
   const thresholdArg = args.find((a) => a.startsWith("--threshold="))?.split("=")[1];
   const invert = args.includes("--invert");
   const dither = args.includes("--dither") ? true : args.includes("--no-dither") ? false : undefined;
+  const color =
+    args.includes("--color") || args.includes("-C")
+      ? true
+      : args.includes("--no-color")
+        ? false
+        : undefined;
 
   let copy: boolean | undefined = undefined;
   if (args.includes("--copy") || args.includes("-c")) {
@@ -50,6 +57,7 @@ function parseCliArgs(): {
       threshold: thresholdArg ? parseInt(thresholdArg, 10) : undefined,
       invert: invert ? true : undefined,
       dither,
+      color,
       copy,
     },
     // If no image path was passed, enter interactive mode to prompt for it
@@ -69,10 +77,12 @@ Interactive Mode:
 
 Options:
   --width=<number>        Target width in characters (default: 120)
-  --threshold=<0-255>     Brightness cutoff threshold (default: 128)
-  --invert                Invert light and dark pixels
+  --color, -C             Enable 24-bit Truecolor terminal rendering
+  --no-color              Disable colors (default: monochrome)
   --dither                Apply Floyd-Steinberg dithering for smooth shading
   --no-dither             Disable dithering (default: hard cutoff)
+  --threshold=<0-255>     Brightness cutoff threshold (default: 128)
+  --invert                Invert light and dark pixels
   --copy, -c              Copy result to clipboard immediately
   --no-copy               Skip clipboard copy prompt
   --interactive, -i       Prompt interactively
@@ -80,9 +90,9 @@ Options:
 
 Examples:
   img2ascii
-  img2ascii ./photo.png --dither
-  img2ascii ./photo.png --width=100 --dither --copy
-  img2ascii ./photo.png --invert
+  img2ascii ./photo.png --color
+  img2ascii ./photo.png --dither --color
+  img2ascii ./photo.png --width=100 --color --copy
 `);
 }
 
@@ -125,7 +135,17 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
     }
   }
 
-  // 3. Dither (optional, default: N)
+  // 3. Color (optional, default: N)
+  let color = existing.color;
+  if (color === undefined) {
+    const raw = await rl.question(
+      `${cyan("?")} ${bold("Enable color output? (y/N)")} ${dim("[N]")}: `
+    );
+    const trimmed = raw.trim().toLowerCase();
+    color = trimmed === "y" || trimmed === "yes";
+  }
+
+  // 4. Dither (optional, default: N)
   let dither = existing.dither;
   if (dither === undefined) {
     const raw = await rl.question(
@@ -135,7 +155,7 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
     dither = trimmed === "y" || trimmed === "yes";
   }
 
-  // 4. Invert (optional, default: N)
+  // 5. Invert (optional, default: N)
   let invert = existing.invert;
   if (invert === undefined) {
     const raw = await rl.question(
@@ -151,6 +171,7 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
     threshold: existing.threshold ?? 128,
     invert,
     dither,
+    color,
     copy: existing.copy,
   };
 }
@@ -187,6 +208,7 @@ async function main() {
       threshold: parsedOptions.threshold ?? 128,
       invert: parsedOptions.invert ?? false,
       dither: parsedOptions.dither ?? false,
+      color: parsedOptions.color ?? false,
       copy: parsedOptions.copy,
     };
 
@@ -203,6 +225,7 @@ async function main() {
       threshold: config.threshold,
       invert: config.invert,
       dither: config.dither,
+      color: config.color,
     });
   } catch (err) {
     console.error(`\n${red("Failed to convert image:")}`, err instanceof Error ? err.message : err);
@@ -235,7 +258,9 @@ async function main() {
   rl?.close();
 
   if (shouldCopy) {
-    await copyToClipboard(result);
+    // Strip ANSI escape codes when copying to clipboard so it pastes as clean Braille everywhere
+    const cleanArt = stripAnsi(result);
+    await copyToClipboard(cleanArt);
     console.log(`${green("✔")} Copied to clipboard! Ready to paste.`);
   } else if (isInteractive) {
     console.log(`${dim("Done.")}`);

@@ -30,10 +30,12 @@ img2ascii ./photo.png --width=100 --dither --copy
 
 - `<image-path>`: Path to the image file (required; or prompted interactively)
 - `--width=<number>`: Target image width in characters (default: `120`)
-- `--threshold=<0-255>`: Brightness cutoff threshold (default: `128`)
-- `--invert`: Invert light and dark pixels (useful for switching between dark/light terminal themes)
+- `--color`, `-C`: Enable 24-bit Truecolor ANSI rendering in terminal
+- `--no-color`: Disable colors (default: monochrome)
 - `--dither`: Apply Floyd-Steinberg error diffusion dithering for smooth shading
 - `--no-dither`: Disable dithering (default: hard cutoff)
+- `--threshold=<0-255>`: Brightness cutoff threshold (default: `128`)
+- `--invert`: Invert light and dark pixels (useful for switching between dark/light terminal themes)
 - `--copy`, `-c`: Copy output to clipboard immediately
 - `--no-copy`: Skip copying output to clipboard
 - `--interactive`, `-i`: Force interactive prompt mode
