@@ -34,7 +34,9 @@ bun run cli.ts ./assets/dragon.jpg --width=100 --threshold=128 --invert
 - `--width=<number>`: Target image width in characters (default: `120`)
 - `--threshold=<0-255>`: Brightness cutoff threshold (default: `128`)
 - `--invert`: Invert light and dark pixels (useful for switching between dark/light terminal themes)
-- `--interactive`, `-i`: Force dynamic prompts for missing/all parameters
+- `--copy`, `-c`: Copy output to clipboard immediately
+- `--no-copy`: Skip copying output to clipboard
+- `--interactive`, `-i`: Force dynamic prompts with interactive TUI
 - `--help`, `-h`: Show usage instructions
 
 ---

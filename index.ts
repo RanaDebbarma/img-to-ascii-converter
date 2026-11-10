@@ -1,7 +1,8 @@
 import sharp from "sharp";
 import { pixelsToBraille, type BrailleOptions } from "./utils/braille-converter";
+import { copyToClipboard } from "./utils/clipboard";
 
-export { pixelsToBraille };
+export { pixelsToBraille, copyToClipboard };
 export type { BrailleOptions };
 
 export interface ConvertOptions {
