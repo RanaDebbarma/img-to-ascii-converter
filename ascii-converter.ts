@@ -4,6 +4,10 @@ import { pixelsToBraille } from "./utils/braille-converter";
 const IMAGE_PATH = "./assets/dragon.jpg";
 
 const { data, info } = await sharp(IMAGE_PATH)
+  .resize({
+    width: 180,
+    withoutEnlargement: true,
+  })
   .greyscale()
   .raw()
   .toBuffer({ resolveWithObject: true });

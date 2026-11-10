@@ -29,7 +29,7 @@ export function pixelsToBraille(
   for (let dy = 0; dy < 4; dy++) {
     for (let dx = 0; dx < 2; dx++) {
       const pixel = data[(y + dy) * width + (x + dx)];
-      if (pixel! < 128) {
+      if (pixel! >= 128) {
         pattern |= DOT_BITS[i]!;
       }
 
