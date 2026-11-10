@@ -9,6 +9,7 @@ interface CliOptions {
   width: number;
   threshold: number;
   invert: boolean;
+  dither: boolean;
   copy?: boolean;
 }
 
@@ -33,6 +34,7 @@ function parseCliArgs(): {
   const widthArg = args.find((a) => a.startsWith("--width="))?.split("=")[1];
   const thresholdArg = args.find((a) => a.startsWith("--threshold="))?.split("=")[1];
   const invert = args.includes("--invert");
+  const dither = args.includes("--dither") ? true : args.includes("--no-dither") ? false : undefined;
 
   let copy: boolean | undefined = undefined;
   if (args.includes("--copy") || args.includes("-c")) {
@@ -47,6 +49,7 @@ function parseCliArgs(): {
       width: widthArg ? parseInt(widthArg, 10) : undefined,
       threshold: thresholdArg ? parseInt(thresholdArg, 10) : undefined,
       invert: invert ? true : undefined,
+      dither,
       copy,
     },
     // If no image path was passed, enter interactive mode to prompt for it
@@ -68,6 +71,8 @@ Options:
   --width=<number>        Target width in characters (default: 120)
   --threshold=<0-255>     Brightness cutoff threshold (default: 128)
   --invert                Invert light and dark pixels
+  --dither                Apply Floyd-Steinberg dithering for smooth shading
+  --no-dither             Disable dithering (default: hard cutoff)
   --copy, -c              Copy result to clipboard immediately
   --no-copy               Skip clipboard copy prompt
   --interactive, -i       Prompt interactively
@@ -75,8 +80,8 @@ Options:
 
 Examples:
   img2ascii
-  img2ascii ./photo.png
-  img2ascii ./photo.png --width=100 --copy
+  img2ascii ./photo.png --dither
+  img2ascii ./photo.png --width=100 --dither --copy
   img2ascii ./photo.png --invert
 `);
 }
@@ -120,23 +125,14 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
     }
   }
 
-  // 3. Threshold (optional, default: 128)
-  let threshold = existing.threshold;
-  while (threshold === undefined) {
+  // 3. Dither (optional, default: N)
+  let dither = existing.dither;
+  if (dither === undefined) {
     const raw = await rl.question(
-      `${cyan("?")} ${bold("Brightness threshold (0-255)")} ${dim("[128]")}: `
+      `${cyan("?")} ${bold("Apply dithering for smooth shading? (y/N)")} ${dim("[N]")}: `
     );
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      threshold = 128;
-      break;
-    }
-    const parsed = parseInt(trimmed, 10);
-    if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 255) {
-      threshold = parsed;
-    } else {
-      console.log(`  ${red("✖")} Please enter a number between 0 and 255.`);
-    }
+    const trimmed = raw.trim().toLowerCase();
+    dither = trimmed === "y" || trimmed === "yes";
   }
 
   // 4. Invert (optional, default: N)
@@ -152,8 +148,9 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
   return {
     imagePath,
     width,
-    threshold,
+    threshold: existing.threshold ?? 128,
     invert,
+    dither,
     copy: existing.copy,
   };
 }
@@ -189,6 +186,7 @@ async function main() {
       width: parsedOptions.width ?? 120,
       threshold: parsedOptions.threshold ?? 128,
       invert: parsedOptions.invert ?? false,
+      dither: parsedOptions.dither ?? false,
       copy: parsedOptions.copy,
     };
 
@@ -204,6 +202,7 @@ async function main() {
       width: config.width,
       threshold: config.threshold,
       invert: config.invert,
+      dither: config.dither,
     });
   } catch (err) {
     console.error(`\n${red("Failed to convert image:")}`, err instanceof Error ? err.message : err);
