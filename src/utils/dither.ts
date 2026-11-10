@@ -28,7 +28,7 @@ export function applyFloydSteinbergDither(
 
     for (let x = 0; x < width; x++) {
       const idx = rowOffset + x;
-      const currentVal = buffer[idx]!;
+      const currentVal = buffer[idx] ?? 0;
 
       // Quantize to 0 or 255
       const quantized = currentVal >= threshold ? 255 : 0;
@@ -59,3 +59,54 @@ export function applyFloydSteinbergDither(
 
   return output;
 }
+
+/**
+ * Applies multi-level Floyd-Steinberg dithering for character ramp quantization.
+ * Quantizes continuous grayscale values to discrete ramp levels (0 to numLevels - 1).
+ */
+export function applyRampDither(
+  data: Uint8Array | Buffer,
+  width: number,
+  height: number,
+  numLevels: number
+): Uint8Array {
+  const buffer = new Float32Array(data);
+  const output = new Uint8Array(width * height);
+  const maxLevel = numLevels - 1;
+  const step = 255 / maxLevel;
+
+  for (let y = 0; y < height; y++) {
+    const rowOffset = y * width;
+    const nextRowOffset = (y + 1) * width;
+    const hasNextRow = y + 1 < height;
+
+    for (let x = 0; x < width; x++) {
+      const idx = rowOffset + x;
+      const currentVal = Math.max(0, Math.min(255, buffer[idx] ?? 0));
+
+      // Map to nearest discrete level index
+      const levelIdx = Math.round(currentVal / step);
+      output[idx] = Math.max(0, Math.min(maxLevel, levelIdx));
+
+      const quantizedVal = levelIdx * step;
+      const error = currentVal - quantizedVal;
+
+      if (x + 1 < width) {
+        buffer[idx + 1] = (buffer[idx + 1] ?? 0) + error * (7 / 16);
+      }
+
+      if (hasNextRow) {
+        if (x > 0) {
+          buffer[nextRowOffset + x - 1] = (buffer[nextRowOffset + x - 1] ?? 0) + error * (3 / 16);
+        }
+        buffer[nextRowOffset + x] = (buffer[nextRowOffset + x] ?? 0) + error * (5 / 16);
+        if (x + 1 < width) {
+          buffer[nextRowOffset + x + 1] = (buffer[nextRowOffset + x + 1] ?? 0) + error * (1 / 16);
+        }
+      }
+    }
+  }
+
+  return output;
+}
+

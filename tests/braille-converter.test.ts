@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { pixelsToBraille } from "../utils/braille-converter";
+import { pixelsToBraille } from "../src/converters/braille";
 
 describe("pixelsToBraille", () => {
   it("renders empty cell when all pixels are dark", () => {

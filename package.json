@@ -1,17 +1,17 @@
 {
   "name": "img-to-ascii-converter",
-  "main": "index.ts",
-  "module": "index.ts",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
   "type": "module",
   "bin": {
-    "img2ascii": "./cli.ts",
-    "ascii-converter": "./cli.ts"
+    "img2ascii": "./src/cli.ts",
+    "ascii-converter": "./src/cli.ts"
   },
   "private": true,
   "scripts": {
-    "start": "bun run cli.ts",
-    "img2ascii": "bun run cli.ts",
-    "cli": "bun run cli.ts",
+    "start": "bun run src/cli.ts",
+    "img2ascii": "bun run src/cli.ts",
+    "cli": "bun run src/cli.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

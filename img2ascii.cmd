@@ -1,3 +1,2 @@
 @echo off
-bun run "%~dp0cli.ts" %*
-
+bun run "%~dp0src\cli.ts" %*

@@ -13,7 +13,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     process.stdout.write(`\x1b]52;c;${base64}\x07`);
     copied = true;
   } catch {
-    // Ignore error and continue to native tool
+    // Continue to native tool
   }
 
   // 2. Also invoke native system clipboard tool via Bun.spawn

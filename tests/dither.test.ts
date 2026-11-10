@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyFloydSteinbergDither } from "../utils/dither";
+import { applyFloydSteinbergDither, applyRampDither } from "../src/utils/dither";
 
 describe("applyFloydSteinbergDither", () => {
   it("leaves all-black image as 0", () => {
@@ -39,6 +39,14 @@ describe("applyFloydSteinbergDither", () => {
     expect(zeros).toBeGreaterThan(0);
     expect(whites).toBeGreaterThan(0);
     expect(zeros + whites).toBe(16);
+  });
+
+  it("quantizes to ramp levels with applyRampDither", () => {
+    const input = new Uint8Array(16).fill(128);
+    const result = applyRampDither(input, 4, 4, 10);
+    for (let i = 0; i < result.length; i++) {
+      expect(result[i]! >= 0 && result[i]! < 10).toBe(true);
+    }
   });
 });
 
