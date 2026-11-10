@@ -29,7 +29,6 @@ function parseCliArgs(): {
 
   const imagePath = args.find((a) => !a.startsWith("--") && !a.startsWith("-"));
 
-  // Mode: --mode=ascii / --mode=braille, or flags --ascii / --braille
   let mode: RenderMode | undefined = undefined;
   const modeArg = args.find((a) => a.startsWith("--mode="))?.split("=")[1]?.toLowerCase();
   if (modeArg === "ascii" || args.includes("--ascii")) {
@@ -105,13 +104,16 @@ Examples:
 }
 
 async function promptInline(rl: readline.Interface, existing: Partial<CliConfig>): Promise<CliConfig> {
-  console.log(`${bold("Image to ASCII / Braille Converter")}\n`);
+  // 1. Image Path (uses existing path as default if in a re-run loop)
+  let imagePath = "";
+  const defaultPath = existing.imagePath;
+  const pathPrompt = defaultPath
+    ? `${cyan("?")} ${bold("Image path")} ${dim(`[${defaultPath}]`)}: `
+    : `${cyan("?")} ${bold("Image path")}: `;
 
-  // 1. Image Path
-  let imagePath = existing.imagePath;
   while (!imagePath) {
-    const raw = await rl.question(`${cyan("?")} ${bold("Image path")}: `);
-    const selected = raw.trim().replace(/^['"]|['"]$/g, "");
+    const raw = await rl.question(pathPrompt);
+    const selected = raw.trim().replace(/^['"]|['"]$/g, "") || defaultPath || "";
     if (!selected) {
       console.log(`  ${red("✖")} Please enter an image path.`);
       continue;
@@ -124,24 +126,27 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliConfig>
   }
 
   // 2. Render Mode (braille / ascii)
-  let mode = existing.mode;
-  if (!mode) {
-    const raw = await rl.question(
-      `${cyan("?")} ${bold("Render mode (braille / ascii)")} ${dim("[braille]")}: `
-    );
-    const trimmed = raw.trim().toLowerCase();
-    mode = trimmed.startsWith("a") ? "ascii" : "braille";
-  }
+  const defaultMode = existing.mode ?? "braille";
+  const rawMode = await rl.question(
+    `${cyan("?")} ${bold("Render mode (braille / ascii)")} ${dim(`[${defaultMode}]`)}: `
+  );
+  const trimmedMode = rawMode.trim().toLowerCase();
+  const mode: RenderMode = trimmedMode
+    ? trimmedMode.startsWith("a")
+      ? "ascii"
+      : "braille"
+    : defaultMode;
 
-  // 3. Width (optional, default: 120)
-  let width = existing.width;
+  // 3. Width (optional, default: 120 or previous)
+  let width: number | undefined;
+  const defaultWidth = existing.width ?? 120;
   while (width === undefined) {
     const raw = await rl.question(
-      `${cyan("?")} ${bold("Target width in characters")} ${dim("[120]")}: `
+      `${cyan("?")} ${bold("Target width in characters")} ${dim(`[${defaultWidth}]`)}: `
     );
     const trimmed = raw.trim();
     if (!trimmed) {
-      width = 120;
+      width = defaultWidth;
       break;
     }
     const parsed = parseInt(trimmed, 10);
@@ -152,35 +157,38 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliConfig>
     }
   }
 
-  // 4. Color (optional, default: N)
-  let color = existing.color;
-  if (color === undefined) {
-    const raw = await rl.question(
-      `${cyan("?")} ${bold("Enable color output? (y/N)")} ${dim("[N]")}: `
-    );
-    const trimmed = raw.trim().toLowerCase();
-    color = trimmed === "y" || trimmed === "yes";
-  }
+  // 4. Color (optional, default: previous or N)
+  const defaultColor = existing.color ? "Y" : "N";
+  const rawColor = await rl.question(
+    `${cyan("?")} ${bold("Enable color output? (y/N)")} ${dim(`[${defaultColor}]`)}: `
+  );
+  const trimmedColor = rawColor.trim().toLowerCase();
+  const color =
+    trimmedColor === ""
+      ? existing.color ?? false
+      : trimmedColor === "y" || trimmedColor === "yes";
 
-  // 5. Dither (optional, default: N)
-  let dither = existing.dither;
-  if (dither === undefined) {
-    const raw = await rl.question(
-      `${cyan("?")} ${bold("Apply dithering for smooth shading? (y/N)")} ${dim("[N]")}: `
-    );
-    const trimmed = raw.trim().toLowerCase();
-    dither = trimmed === "y" || trimmed === "yes";
-  }
+  // 5. Dither (optional, default: previous or N)
+  const defaultDither = existing.dither ? "Y" : "N";
+  const rawDither = await rl.question(
+    `${cyan("?")} ${bold("Apply dithering for smooth shading? (y/N)")} ${dim(`[${defaultDither}]`)}: `
+  );
+  const trimmedDither = rawDither.trim().toLowerCase();
+  const dither =
+    trimmedDither === ""
+      ? existing.dither ?? false
+      : trimmedDither === "y" || trimmedDither === "yes";
 
-  // 6. Invert (optional, default: N)
-  let invert = existing.invert;
-  if (invert === undefined) {
-    const raw = await rl.question(
-      `${cyan("?")} ${bold("Invert light/dark? (y/N)")} ${dim("[N]")}: `
-    );
-    const trimmed = raw.trim().toLowerCase();
-    invert = trimmed === "y" || trimmed === "yes";
-  }
+  // 6. Invert (optional, default: previous or N)
+  const defaultInvert = existing.invert ? "Y" : "N";
+  const rawInvert = await rl.question(
+    `${cyan("?")} ${bold("Invert light/dark? (y/N)")} ${dim(`[${defaultInvert}]`)}: `
+  );
+  const trimmedInvert = rawInvert.trim().toLowerCase();
+  const invert =
+    trimmedInvert === ""
+      ? existing.invert ?? false
+      : trimmedInvert === "y" || trimmedInvert === "yes";
 
   return {
     imagePath,
@@ -194,6 +202,44 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliConfig>
   };
 }
 
+async function renderImage(config: CliConfig, rl?: readline.Interface): Promise<void> {
+  let result = "";
+  try {
+    result = await convertImage(config.imagePath, {
+      mode: config.mode,
+      width: config.width,
+      threshold: config.threshold,
+      invert: config.invert,
+      dither: config.dither,
+      color: config.color,
+    });
+  } catch (err) {
+    console.error(`\n${red("Failed to convert image:")}`, err instanceof Error ? err.message : err);
+    return;
+  }
+
+  // Print generated art
+  console.log("\n" + result + "\n");
+
+  // Determine whether to copy to clipboard
+  let shouldCopy = config.copy;
+
+  if (shouldCopy === undefined && rl) {
+    const raw = await rl.question(
+      `${cyan("?")} ${bold("Copy output to clipboard? (y/N)")} ${dim("[N]")}: `
+    );
+    const trimmed = raw.trim().toLowerCase();
+    shouldCopy = trimmed === "y" || trimmed === "yes";
+  }
+
+  if (shouldCopy) {
+    // Strip ANSI escape codes when copying to clipboard so it pastes cleanly everywhere
+    const cleanArt = stripAnsi(result);
+    await copyToClipboard(cleanArt);
+    console.log(`${green("✔")} Copied to clipboard! Ready to paste.`);
+  }
+}
+
 async function main() {
   const { options: parsedOptions, isInteractive, hasHelp } = parseCliArgs();
 
@@ -202,25 +248,14 @@ async function main() {
     return;
   }
 
-  let config: CliConfig;
-  let rl: readline.Interface | undefined;
-
-  if (isInteractive) {
-    rl = readline.createInterface({ input, output });
-    rl.on("SIGINT", () => {
-      console.log("\nCancelled.");
-      process.exit(0);
-    });
-
-    config = await promptInline(rl, parsedOptions);
-  } else {
+  if (!isInteractive) {
     if (!parsedOptions.imagePath) {
       console.error(`${red("Error:")} Please specify an image path.`);
       console.error(`Usage: img2ascii <image-path> [options]`);
       process.exit(1);
     }
 
-    config = {
+    const config: CliConfig = {
       imagePath: parsedOptions.imagePath,
       mode: parsedOptions.mode ?? "braille",
       width: parsedOptions.width ?? 120,
@@ -235,57 +270,41 @@ async function main() {
       console.error(`${red("Error:")} File not found: "${config.imagePath}"`);
       process.exit(1);
     }
+
+    await renderImage(config);
+    return;
   }
 
-  let result = "";
-  try {
-    result = await convertImage(config.imagePath, {
-      mode: config.mode,
-      width: config.width,
-      threshold: config.threshold,
-      invert: config.invert,
-      dither: config.dither,
-      color: config.color,
-    });
-  } catch (err) {
-    console.error(`\n${red("Failed to convert image:")}`, err instanceof Error ? err.message : err);
-    rl?.close();
-    process.exit(1);
-  }
+  // Interactive session loop (keeps previous settings in memory for the duration of the session)
+  const rl = readline.createInterface({ input, output });
+  rl.on("SIGINT", () => {
+    console.log("\nCancelled.");
+    process.exit(0);
+  });
 
-  // Print generated art
-  console.log("\n" + result + "\n");
+  console.log(`${bold("Image to ASCII / Braille Converter")}\n`);
 
-  // Determine whether to copy to clipboard
-  let shouldCopy = config.copy;
+  let currentDefaults: Partial<CliConfig> = parsedOptions;
+  let keepGoing = true;
 
-  if (shouldCopy === undefined && (isInteractive || process.stdout.isTTY)) {
-    if (!rl) {
-      rl = readline.createInterface({ input, output });
-      rl.on("SIGINT", () => {
-        console.log("\nCancelled.");
-        process.exit(0);
-      });
-    }
+  while (keepGoing) {
+    const config = await promptInline(rl, currentDefaults);
+    await renderImage(config, rl);
 
-    const raw = await rl.question(
-      `${cyan("?")} ${bold("Copy output to clipboard? (y/N)")} ${dim("[N]")}: `
+    const rawAgain = await rl.question(
+      `\n${cyan("?")} ${bold("Adjust settings or convert another?")} ${dim("(y/N) [N]")}: `
     );
-    const trimmed = raw.trim().toLowerCase();
-    shouldCopy = trimmed === "y" || trimmed === "yes";
+    const trimmedAgain = rawAgain.trim().toLowerCase();
+    keepGoing = trimmedAgain === "y" || trimmedAgain === "yes";
+
+    if (keepGoing) {
+      currentDefaults = { ...config };
+      console.log("\n" + dim("───────────────────────── Next Run ─────────────────────────") + "\n");
+    }
   }
 
-  rl?.close();
-
-  if (shouldCopy) {
-    // Strip ANSI escape codes when copying to clipboard so it pastes cleanly everywhere
-    const cleanArt = stripAnsi(result);
-    await copyToClipboard(cleanArt);
-    console.log(`${green("✔")} Copied to clipboard! Ready to paste.`);
-  } else if (isInteractive) {
-    console.log(`${dim("Done.")}`);
-  }
+  rl.close();
+  console.log(`${dim("Done.")}`);
 }
 
 main();
-

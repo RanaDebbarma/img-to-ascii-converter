@@ -35,7 +35,10 @@ Prompts:
 ? Apply dithering for smooth shading? (y/N) [N]: 
 ? Invert light/dark? (y/N) [N]: 
 ? Copy output to clipboard? (y/N) [N]: 
+? Adjust settings or convert another? (y/N) [N]: 
 ```
+
+Hitting `y` loops with your previous settings automatically pre-filled as defaults, making it effortless to re-render with a different width, mode, or color.
 
 ### Direct Arguments Mode
 ```bash
