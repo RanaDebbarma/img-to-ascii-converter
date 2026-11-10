@@ -233,10 +233,12 @@ async function renderImage(config: CliConfig, rl?: readline.Interface): Promise<
   }
 
   if (shouldCopy) {
-    // Strip ANSI escape codes when copying to clipboard so it pastes cleanly everywhere
-    const cleanArt = stripAnsi(result);
-    await copyToClipboard(cleanArt);
-    console.log(`${green("✔")} Copied to clipboard! Ready to paste.`);
+    // If color was enabled, preserve ANSI codes in clipboard (e.g. for fastfetch, Discord ANSI blocks)
+    // If no color, the result has no ANSI codes anyway — stripAnsi is a safe no-op
+    const artToCopy = config.color ? result : stripAnsi(result);
+    await copyToClipboard(artToCopy);
+    const colorNote = config.color ? dim(" (with ANSI colors)") : "";
+    console.log(`${green("✔")} Copied to clipboard!${colorNote} Ready to paste.`);
   }
 }
 
