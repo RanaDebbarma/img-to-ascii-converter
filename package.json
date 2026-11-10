@@ -1,9 +1,11 @@
 {
   "name": "img-to-ascii-converter",
-  "module": "index.ts",
+  "module": "ascii-converter.ts",
   "type": "module",
   "private": true,
   "scripts": {
+    "start": "bun run ascii-converter.ts",
+    "test": "bun test",
     "typecheck": "bun check"
   },
   "devDependencies": {
