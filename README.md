@@ -1,6 +1,6 @@
 # img-to-ascii-converter
 
-Convert images into Braille-based ASCII art in your terminal.
+Convert images into Braille-based ASCII art in your terminal or use programmatically as a library.
 
 ## Prerequisites
 
@@ -12,33 +12,57 @@ Convert images into Braille-based ASCII art in your terminal.
 bun install
 ```
 
-## Usage
+## CLI Usage
 
-Run with the default asset:
+### Interactive Mode (Dynamic Inputs)
+Simply run `bun start` without parameters to be interactively prompted for image path, width, threshold, and inversion:
 ```bash
 bun start
 # or
-bun run ascii-converter.ts
+bun run cli.ts -i
 ```
 
-Run with custom image and options:
+### Direct Arguments Mode
+Provide arguments directly via the command line:
 ```bash
-bun run ascii-converter.ts ./assets/dragon.jpg --width=100 --threshold=128 --invert
+bun run cli.ts ./assets/dragon.jpg --width=100 --threshold=128 --invert
 ```
 
-### Options
+### CLI Options
 
-- `<image-path>`: Path to the image file (default: `./assets/dragon_head logo.png`)
-- `--width=<number>`: Target image width in dots (default: `120`)
+- `<image-path>`: Path to the image file (default: `./assets/dragon.jpg`)
+- `--width=<number>`: Target image width in characters (default: `120`)
 - `--threshold=<0-255>`: Brightness cutoff threshold (default: `128`)
 - `--invert`: Invert light and dark pixels (useful for switching between dark/light terminal themes)
+- `--interactive`, `-i`: Force dynamic prompts for missing/all parameters
+- `--help`, `-h`: Show usage instructions
 
-## Development
+---
+
+## Programmatic Library Usage
+
+You can also import and use the converter directly in your own TypeScript/JavaScript code:
+
+```ts
+import { convertImageToBraille } from "./index";
+
+const brailleArt = await convertImageToBraille("./assets/dragon.jpg", {
+  width: 100,
+  threshold: 128,
+  invert: false,
+});
+
+console.log(brailleArt);
+```
+
+---
+
+## Development & Testing
 
 ```bash
+# Run tests
+bun test
+
 # Type check
 bun run typecheck
-
-# Format code
-bun fmt
 ```

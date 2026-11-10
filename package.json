@@ -1,12 +1,17 @@
 {
   "name": "img-to-ascii-converter",
-  "module": "ascii-converter.ts",
+  "main": "index.ts",
+  "module": "index.ts",
   "type": "module",
+  "bin": {
+    "ascii-converter": "cli.ts"
+  },
   "private": true,
   "scripts": {
-    "start": "bun run ascii-converter.ts",
+    "start": "bun run cli.ts",
+    "cli": "bun run cli.ts",
     "test": "bun test",
-    "typecheck": "bun check"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest"
