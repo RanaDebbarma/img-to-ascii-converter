@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { existsSync } from "node:fs";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -48,8 +49,8 @@ function parseCliArgs(): {
       invert: invert ? true : undefined,
       copy,
     },
-    // Interactive by default if no arguments are provided, or if --interactive is passed
-    isInteractive: isInteractive || (args.length === 0 && !imagePath),
+    // If no image path was passed, enter interactive mode to prompt for it
+    isInteractive: isInteractive || !imagePath,
     hasHelp,
   };
 }
@@ -57,11 +58,11 @@ function parseCliArgs(): {
 function printHelp(): void {
   console.log(`
 Usage:
-  bun run cli.ts [image-path] [options]
+  img2ascii [image-path] [options]
 
 Interactive Mode:
-  bun start                      (compact inline prompts for settings)
-  bun run cli.ts -i              (forces interactive prompt mode)
+  img2ascii                      (prompts for image path and settings)
+  img2ascii -i                   (forces interactive prompt mode)
 
 Options:
   --width=<number>        Target width in characters (default: 120)
@@ -73,22 +74,26 @@ Options:
   --help, -h              Show this help message
 
 Examples:
-  bun start
-  bun run cli.ts ./assets/dragon.jpg --width=100 --copy
-  bun run cli.ts ./assets/dragon.jpg --invert
+  img2ascii
+  img2ascii ./photo.png
+  img2ascii ./photo.png --width=100 --copy
+  img2ascii ./photo.png --invert
 `);
 }
 
 async function promptInline(rl: readline.Interface, existing: Partial<CliOptions>): Promise<CliOptions> {
   console.log(`${bold("Image to ASCII / Braille Converter")}\n`);
 
-  // 1. Image Path
+  // 1. Image Path (mandatory: no hardcoded sample asset default)
   let imagePath = existing.imagePath;
   while (!imagePath) {
-    const raw = await rl.question(
-      `${cyan("?")} ${bold("Image path")} ${dim("[./assets/dragon.jpg]")}: `
-    );
-    const selected = raw.trim() || "./assets/dragon.jpg";
+    const raw = await rl.question(`${cyan("?")} ${bold("Image path")}: `);
+    // Strip quotes in case the path was dragged and dropped into terminal
+    const selected = raw.trim().replace(/^['"]|['"]$/g, "");
+    if (!selected) {
+      console.log(`  ${red("✖")} Please enter an image path.`);
+      continue;
+    }
     if (existsSync(selected)) {
       imagePath = selected;
     } else {
@@ -96,7 +101,7 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
     }
   }
 
-  // 2. Width
+  // 2. Width (optional, default: 120)
   let width = existing.width;
   while (width === undefined) {
     const raw = await rl.question(
@@ -115,7 +120,7 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
     }
   }
 
-  // 3. Threshold
+  // 3. Threshold (optional, default: 128)
   let threshold = existing.threshold;
   while (threshold === undefined) {
     const raw = await rl.question(
@@ -134,7 +139,7 @@ async function promptInline(rl: readline.Interface, existing: Partial<CliOptions
     }
   }
 
-  // 4. Invert
+  // 4. Invert (optional, default: N)
   let invert = existing.invert;
   if (invert === undefined) {
     const raw = await rl.question(
@@ -173,8 +178,14 @@ async function main() {
 
     config = await promptInline(rl, parsedOptions);
   } else {
+    if (!parsedOptions.imagePath) {
+      console.error(`${red("Error:")} Please specify an image path.`);
+      console.error(`Usage: img2ascii <image-path> [options]`);
+      process.exit(1);
+    }
+
     config = {
-      imagePath: parsedOptions.imagePath ?? "./assets/dragon.jpg",
+      imagePath: parsedOptions.imagePath,
       width: parsedOptions.width ?? 120,
       threshold: parsedOptions.threshold ?? 128,
       invert: parsedOptions.invert ?? false,

@@ -4,11 +4,13 @@
   "module": "index.ts",
   "type": "module",
   "bin": {
-    "ascii-converter": "cli.ts"
+    "img2ascii": "./cli.ts",
+    "ascii-converter": "./cli.ts"
   },
   "private": true,
   "scripts": {
     "start": "bun run cli.ts",
+    "img2ascii": "bun run cli.ts",
     "cli": "bun run cli.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

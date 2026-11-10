@@ -15,28 +15,26 @@ bun install
 ## CLI Usage
 
 ### Interactive Mode (Dynamic Inputs)
-Simply run `bun start` without parameters to be interactively prompted for image path, width, threshold, and inversion:
+Simply run `img2ascii` without parameters to be prompted for the image and optional settings:
 ```bash
-bun start
-# or
-bun run cli.ts -i
+img2ascii
 ```
 
 ### Direct Arguments Mode
 Provide arguments directly via the command line:
 ```bash
-bun run cli.ts ./assets/dragon.jpg --width=100 --threshold=128 --invert
+img2ascii ./photo.png --width=100 --threshold=128 --invert
 ```
 
 ### CLI Options
 
-- `<image-path>`: Path to the image file (default: `./assets/dragon.jpg`)
+- `<image-path>`: Path to the image file (required; or prompted interactively)
 - `--width=<number>`: Target image width in characters (default: `120`)
 - `--threshold=<0-255>`: Brightness cutoff threshold (default: `128`)
 - `--invert`: Invert light and dark pixels (useful for switching between dark/light terminal themes)
 - `--copy`, `-c`: Copy output to clipboard immediately
 - `--no-copy`: Skip copying output to clipboard
-- `--interactive`, `-i`: Force dynamic prompts with interactive TUI
+- `--interactive`, `-i`: Force interactive prompt mode
 - `--help`, `-h`: Show usage instructions
 
 ---
