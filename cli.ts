@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import * as p from "@clack/prompts";
+import readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 import { convertImageToBraille, copyToClipboard } from "./index";
 
 interface CliOptions {
@@ -9,6 +10,13 @@ interface CliOptions {
   invert: boolean;
   copy?: boolean;
 }
+
+// ANSI styling helpers for a clean, compact inline UI
+const cyan = (text: string) => `\x1b[36m${text}\x1b[0m`;
+const dim = (text: string) => `\x1b[2m${text}\x1b[0m`;
+const bold = (text: string) => `\x1b[1m${text}\x1b[0m`;
+const green = (text: string) => `\x1b[32m${text}\x1b[0m`;
+const red = (text: string) => `\x1b[31m${text}\x1b[0m`;
 
 function parseCliArgs(): {
   options: Partial<CliOptions>;
@@ -52,7 +60,7 @@ Usage:
   bun run cli.ts [image-path] [options]
 
 Interactive Mode:
-  bun start                      (TUI mode: prompts dynamically for all inputs)
+  bun start                      (compact inline prompts for settings)
   bun run cli.ts -i              (forces interactive prompt mode)
 
 Options:
@@ -61,7 +69,7 @@ Options:
   --invert                Invert light and dark pixels
   --copy, -c              Copy result to clipboard immediately
   --no-copy               Skip clipboard copy prompt
-  --interactive, -i       Prompt interactively with TUI
+  --interactive, -i       Prompt interactively
   --help, -h              Show this help message
 
 Examples:
@@ -71,98 +79,69 @@ Examples:
 `);
 }
 
-async function runInteractiveTui(existing: Partial<CliOptions>): Promise<CliOptions> {
-  p.intro("🖼️  Image to ASCII / Braille Converter");
+async function promptInline(rl: readline.Interface, existing: Partial<CliOptions>): Promise<CliOptions> {
+  console.log(`${bold("Image to ASCII / Braille Converter")}\n`);
 
   // 1. Image Path
   let imagePath = existing.imagePath;
-  if (!imagePath) {
-    const inputPath = await p.text({
-      message: "Enter image path [default: ./assets/dragon.jpg]:",
-      placeholder: "./assets/dragon.jpg",
-      defaultValue: "./assets/dragon.jpg",
-      validate(value) {
-        const target = (value ?? "").trim() || "./assets/dragon.jpg";
-        if (!existsSync(target)) {
-          return `File not found: "${target}". Please check the path.`;
-        }
-      },
-    });
-
-    if (p.isCancel(inputPath)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+  while (!imagePath) {
+    const raw = await rl.question(
+      `${cyan("?")} ${bold("Image path")} ${dim("[./assets/dragon.jpg]")}: `
+    );
+    const selected = raw.trim() || "./assets/dragon.jpg";
+    if (existsSync(selected)) {
+      imagePath = selected;
+    } else {
+      console.log(`  ${red("✖")} File not found: "${selected}". Please enter a valid path.`);
     }
-
-    imagePath = (inputPath ?? "").trim() || "./assets/dragon.jpg";
   }
 
   // 2. Width
   let width = existing.width;
-  if (width === undefined) {
-    const inputWidth = await p.text({
-      message: "Target width in characters [default: 120]:",
-      placeholder: "120",
-      defaultValue: "120",
-      validate(value) {
-        const str = (value ?? "").trim();
-        if (!str) return; // Optional: empty input falls back to default
-        const parsed = parseInt(str, 10);
-        if (Number.isNaN(parsed) || parsed <= 0) {
-          return "Please enter a valid positive number.";
-        }
-      },
-    });
-
-    if (p.isCancel(inputWidth)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+  while (width === undefined) {
+    const raw = await rl.question(
+      `${cyan("?")} ${bold("Target width in characters")} ${dim("[120]")}: `
+    );
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      width = 120;
+      break;
     }
-
-    const trimmed = (inputWidth ?? "").trim();
-    width = trimmed.length > 0 ? parseInt(trimmed, 10) : 120;
+    const parsed = parseInt(trimmed, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      width = parsed;
+    } else {
+      console.log(`  ${red("✖")} Please enter a valid positive number.`);
+    }
   }
 
   // 3. Threshold
   let threshold = existing.threshold;
-  if (threshold === undefined) {
-    const inputThreshold = await p.text({
-      message: "Brightness cutoff threshold (0-255) [default: 128]:",
-      placeholder: "128",
-      defaultValue: "128",
-      validate(value) {
-        const str = (value ?? "").trim();
-        if (!str) return; // Optional: empty input falls back to default
-        const parsed = parseInt(str, 10);
-        if (Number.isNaN(parsed) || parsed < 0 || parsed > 255) {
-          return "Please enter a number between 0 and 255.";
-        }
-      },
-    });
-
-    if (p.isCancel(inputThreshold)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+  while (threshold === undefined) {
+    const raw = await rl.question(
+      `${cyan("?")} ${bold("Brightness threshold (0-255)")} ${dim("[128]")}: `
+    );
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      threshold = 128;
+      break;
     }
-
-    const trimmed = (inputThreshold ?? "").trim();
-    threshold = trimmed.length > 0 ? parseInt(trimmed, 10) : 128;
+    const parsed = parseInt(trimmed, 10);
+    if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 255) {
+      threshold = parsed;
+    } else {
+      console.log(`  ${red("✖")} Please enter a number between 0 and 255.`);
+    }
   }
 
   // 4. Invert
   let invert = existing.invert;
   if (invert === undefined) {
-    const inputInvert = await p.confirm({
-      message: "Invert light and dark pixels?",
-      initialValue: false,
-    });
-
-    if (p.isCancel(inputInvert)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
-    }
-
-    invert = Boolean(inputInvert);
+    const raw = await rl.question(
+      `${cyan("?")} ${bold("Invert light/dark? (y/N)")} ${dim("[N]")}: `
+    );
+    const trimmed = raw.trim().toLowerCase();
+    invert = trimmed === "y" || trimmed === "yes";
   }
 
   return {
@@ -183,9 +162,16 @@ async function main() {
   }
 
   let config: CliOptions;
+  let rl: readline.Interface | undefined;
 
   if (isInteractive) {
-    config = await runInteractiveTui(parsedOptions);
+    rl = readline.createInterface({ input, output });
+    rl.on("SIGINT", () => {
+      console.log("\nCancelled.");
+      process.exit(0);
+    });
+
+    config = await promptInline(rl, parsedOptions);
   } else {
     config = {
       imagePath: parsedOptions.imagePath ?? "./assets/dragon.jpg",
@@ -196,70 +182,53 @@ async function main() {
     };
 
     if (!existsSync(config.imagePath)) {
-      console.error(`Error: File not found: "${config.imagePath}"`);
+      console.error(`${red("Error:")} File not found: "${config.imagePath}"`);
       process.exit(1);
     }
   }
 
-  // Convert image with a spinner if in interactive mode
   let result = "";
-  if (isInteractive) {
-    const s = p.spinner();
-    s.start("Generating Braille ASCII art...");
-    try {
-      result = await convertImageToBraille(config.imagePath, {
-        width: config.width,
-        threshold: config.threshold,
-        invert: config.invert,
-      });
-      s.stop("Conversion complete!");
-    } catch (err) {
-      s.stop("Conversion failed.");
-      p.cancel(err instanceof Error ? err.message : String(err));
-      process.exit(1);
-    }
-  } else {
-    try {
-      result = await convertImageToBraille(config.imagePath, {
-        width: config.width,
-        threshold: config.threshold,
-        invert: config.invert,
-      });
-    } catch (err) {
-      console.error("Failed to convert image:", err instanceof Error ? err.message : err);
-      process.exit(1);
-    }
+  try {
+    result = await convertImageToBraille(config.imagePath, {
+      width: config.width,
+      threshold: config.threshold,
+      invert: config.invert,
+    });
+  } catch (err) {
+    console.error(`\n${red("Failed to convert image:")}`, err instanceof Error ? err.message : err);
+    rl?.close();
+    process.exit(1);
   }
 
-  // Print the generated ASCII art
+  // Print generated ASCII art
   console.log("\n" + result + "\n");
 
   // Determine whether to copy to clipboard
   let shouldCopy = config.copy;
 
-  // If copy wasn't explicitly enabled/disabled via flags, ask via TUI if stdout is interactive
-  if (shouldCopy === undefined) {
-    if (isInteractive || process.stdout.isTTY) {
-      const copyChoice = await p.confirm({
-        message: "📋 Copy ASCII art to clipboard?",
-        initialValue: true,
+  if (shouldCopy === undefined && (isInteractive || process.stdout.isTTY)) {
+    if (!rl) {
+      rl = readline.createInterface({ input, output });
+      rl.on("SIGINT", () => {
+        console.log("\nCancelled.");
+        process.exit(0);
       });
-
-      if (!p.isCancel(copyChoice)) {
-        shouldCopy = Boolean(copyChoice);
-      }
     }
+
+    const raw = await rl.question(
+      `${cyan("?")} ${bold("Copy ASCII art to clipboard? (y/N)")} ${dim("[N]")}: `
+    );
+    const trimmed = raw.trim().toLowerCase();
+    shouldCopy = trimmed === "y" || trimmed === "yes";
   }
+
+  rl?.close();
 
   if (shouldCopy) {
     await copyToClipboard(result);
-    if (isInteractive) {
-      p.outro("✨ Copied to clipboard! Ready to paste.");
-    } else {
-      console.log("✔ Copied to clipboard!");
-    }
+    console.log(`${green("✔")} Copied to clipboard! Ready to paste.`);
   } else if (isInteractive) {
-    p.outro("Done! Enjoy your ASCII art.");
+    console.log(`${dim("Done.")}`);
   }
 }
 
